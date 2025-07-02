@@ -235,7 +235,9 @@ def load_consumption(path: str | Path | None = None, *, force: bool = False) -> 
         path = _DATA_PATH
     path = Path(path)
 
-    totals_mtime = _TOTALS_CSV.stat().st_mtime if _TOTALS_CSV.exists() else None
+    totals_mtime = (
+        _TOTALS_CSV.stat().st_mtime if _TOTALS_CSV and _TOTALS_CSV.exists() else None
+    )
 
     regenerate = force or (not path.exists())
     if not regenerate and totals_mtime is not None:
