@@ -1,7 +1,7 @@
-streamlit
-pandas
-numpy
-prophet
-plotly
-folium
-streamlit-folium
+numpy>=1.24
+pandas>=2.0
+plotly>=5.18
+streamlit>=1.32
+prophet>=1.1
+folium>=0.14
+streamlit-folium>=0.12
