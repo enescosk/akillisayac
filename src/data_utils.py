@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import unicodedata
 
 # ---------------------------------------------------------------------------
 # City metadata
@@ -105,6 +106,9 @@ CITIES: list[dict[str, float | str]] = [
 
 _DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "consumption.csv"
 
+# Path to yearly totals csv shipped by user
+_TOTALS_CSV = Path(__file__).resolve().parent.parent / "city_consumption.csv"
+
 
 def _get_hours_last_week(now: pd.Timestamp | None = None) -> pd.DatetimeIndex:
     """Return hourly DateTimeIndex for the last 7 days ending at *now* (rounded to hour)."""
@@ -113,6 +117,46 @@ def _get_hours_last_week(now: pd.Timestamp | None = None) -> pd.DatetimeIndex:
     end = pd.Timestamp(now).floor("h")
     periods = 24 * 7
     return pd.date_range(end=end, periods=periods, freq="h")
+
+
+def _normalize(name: str) -> str:
+    """Return lowercase ASCII version of *name* for fuzzy matching."""
+    return (
+        unicodedata.normalize("NFKD", name)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+        .replace(" ", "")
+    )
+
+
+def _load_city_totals() -> dict[str, float]:
+    """Load yearly city totals from CSV → dict(normalized_name -> kWh)."""
+    if not _TOTALS_CSV.exists():
+        return {}
+    df = pd.read_csv(_TOTALS_CSV)
+    # Expect columns: city, total_mwh OR Turkish header variations
+    # Identify first two columns regardless of names
+    col_city, col_value = df.columns[:2]
+    totals = {}
+    for _, row in df.iterrows():
+        name = str(row[col_city]).strip()
+        try:
+            value_mwh = float(str(row[col_value]).replace(".", ""))
+        except ValueError:
+            continue
+        totals[_normalize(name)] = value_mwh * 1000  # convert to kWh
+    return totals
+
+
+_CITY_TOTALS_KWH: dict[str, float] | None = None
+
+
+def _get_city_totals() -> dict[str, float]:
+    global _CITY_TOTALS_KWH
+    if _CITY_TOTALS_KWH is None:
+        _CITY_TOTALS_KWH = _load_city_totals()
+    return _CITY_TOTALS_KWH
 
 
 def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
@@ -129,10 +173,24 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     base_pattern += 10 * np.sin(4 * np.pi * hours.hour / 24)
 
     consumption = pd.DataFrame(index=hours)
+    totals = _get_city_totals()
+
+    hrs_in_year = 365 * 24
+    h_len = len(hours)
+
     for city in CITIES:
         city_offset = np.random.normal(0, 5)
-        noise = np.random.normal(0, 3, size=len(hours))
-        consumption[city["name"]] = base_pattern + city_offset + noise
+        noise = np.random.normal(0, 3, size=h_len)
+        series = base_pattern + city_offset + noise
+
+        # Scale to yearly totals if available
+        norm_name = _normalize(city["name"])
+        if norm_name in totals and totals[norm_name] > 0:
+            target_total = totals[norm_name] * (h_len / hrs_in_year)
+            factor = target_total / series.sum()
+            series = series * factor
+
+        consumption[city["name"]] = series
 
     return consumption
 
