@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from itertools import chain
 
 import numpy as np
 import pandas as pd
@@ -105,10 +106,23 @@ CITIES: list[dict[str, float | str]] = [
 # Simulation helpers
 # ---------------------------------------------------------------------------
 
-_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "consumption.csv"
+_DATA_DIR = Path(__file__).resolve().parent.parent
+_DATA_PATH = _DATA_DIR / "data" / "consumption.csv"
 
-# Path to yearly totals csv shipped by user
-_TOTALS_CSV = Path(__file__).resolve().parent.parent / "city_consumption.csv"
+# Possible filenames for yearly totals provided by user
+_POSSIBLE_TOTAL_FILES = [
+    _DATA_DIR / "city_consumption.csv",
+    _DATA_DIR / "city_stats.csv",
+]
+
+# Resolve first existing totals file
+def _resolve_totals_csv() -> Path | None:
+    for p in _POSSIBLE_TOTAL_FILES:
+        if p.exists():
+            return p
+    return None
+
+_TOTALS_CSV = _resolve_totals_csv()
 
 
 def _get_hours_last_week(now: pd.Timestamp | None = None) -> pd.DatetimeIndex:
@@ -133,7 +147,7 @@ def _normalize(name: str) -> str:
 
 def _load_city_totals() -> dict[str, float]:
     """Load yearly city totals from CSV → dict(normalized_name -> kWh)."""
-    if not _TOTALS_CSV.exists():
+    if not _TOTALS_CSV:
         return {}
     df = pd.read_csv(_TOTALS_CSV)
     # Expect columns: city, total_mwh OR Turkish header variations
