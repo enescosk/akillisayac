@@ -1,16 +1,26 @@
 import numpy as np
 import pandas as pd
+
 """Utilities to simulate electricity consumption and detect anomalies."""
 
 from pathlib import Path
 import matplotlib.pyplot as plt
 
 CITIES = [
-    "Istanbul", "Ankara", "Izmir", "Bursa", "Adana",
-    "Gaziantep", "Konya", "Antalya", "Kayseri", "Mersin"
+    "Istanbul",
+    "Ankara",
+    "Izmir",
+    "Bursa",
+    "Adana",
+    "Gaziantep",
+    "Konya",
+    "Antalya",
+    "Kayseri",
+    "Mersin",
 ]
 
 HOURS = pd.date_range(start="2024-01-01", periods=24 * 7, freq="h")
+
 
 def generate_consumption(cities=CITIES, hours=HOURS):
     """Return simulated hourly consumption data for given cities."""
@@ -23,6 +33,7 @@ def generate_consumption(cities=CITIES, hours=HOURS):
         noise = np.random.normal(0, 3, size=len(hours))
         consumption[city] = base_pattern + city_variation + noise
     return consumption
+
 
 def detect_anomalies(consumption, threshold=2):
     """Compute z-scores and return a boolean DataFrame of anomalies."""
@@ -43,6 +54,7 @@ def load_or_generate(path="consumption.csv"):
     data = generate_consumption()
     save_consumption(data, path)
     return data
+
 
 def main():
     """Generate data, detect anomalies and plot selected cities."""
