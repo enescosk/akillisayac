@@ -210,15 +210,25 @@ def save_consumption(consumption: pd.DataFrame, path: str | Path | None = None) 
     consumption.to_csv(path)
 
 
-def load_consumption(path: str | Path | None = None) -> pd.DataFrame:
-    """Load consumption from CSV; generate and save if not present."""
+def load_consumption(path: str | Path | None = None, *, force: bool = False) -> pd.DataFrame:
+    """Load consumption from CSV; generate and save if not present or *force*.
+
+    Data will also be regenerated automatically if the city totals CSV is newer
+    (i.e., yearly data updated) than the cached consumption file.
+    """
     if path is None:
         path = _DATA_PATH
     path = Path(path)
 
-    if path.exists():
-        return pd.read_csv(path, index_col=0, parse_dates=True)
+    totals_mtime = _TOTALS_CSV.stat().st_mtime if _TOTALS_CSV.exists() else None
 
-    data = generate_consumption()
-    save_consumption(data, path)
-    return data
+    regenerate = force or (not path.exists())
+    if not regenerate and totals_mtime is not None:
+        regenerate = totals_mtime > path.stat().st_mtime
+
+    if regenerate:
+        data = generate_consumption()
+        save_consumption(data, path)
+        return data
+
+    return pd.read_csv(path, index_col=0, parse_dates=True)
