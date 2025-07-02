@@ -6,6 +6,9 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+# Default location for the generated CSV
+DATA_PATH = Path("data/consumption.csv")
+
 CITIES = [
     "Istanbul",
     "Ankara",
@@ -41,12 +44,14 @@ def detect_anomalies(consumption, threshold=2):
     return z_scores.abs() > threshold
 
 
-def save_consumption(consumption, path="consumption.csv"):
+def save_consumption(consumption, path=DATA_PATH):
     """Save the generated consumption DataFrame to CSV."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     consumption.to_csv(path)
 
 
-def load_or_generate(path="consumption.csv"):
+def load_or_generate(path=DATA_PATH):
     """Load consumption data from CSV or generate and save if absent."""
     file = Path(path)
     if file.exists():

@@ -14,7 +14,8 @@ from simulate_consumption import (
     load_or_generate,
 )
 
-DATA_PATH = Path("consumption.csv")
+# Path to the consumption CSV in the project data folder
+DATA_PATH = Path("data/consumption.csv")
 
 CITY_COORDS = {
     "Istanbul": (41.0082, 28.9784),
