@@ -42,6 +42,9 @@ def forecast_city(
         series = consumption
 
     df = _prepare_prophet_frame(series)
+    # Prophet requires timezone-naive 'ds'
+    if df["ds"].dt.tz is not None:
+        df["ds"] = df["ds"].dt.tz_localize(None)
 
     model = Prophet(daily_seasonality=True, weekly_seasonality=False)
     model.fit(df)
