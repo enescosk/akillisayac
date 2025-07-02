@@ -39,6 +39,7 @@ This project simulates hourly electricity consumption for 10 major Turkish citie
    ```
 
 5. **Regenerate data** (optional) – Use the "Regenerate Data" button in the sidebar to create fresh synthetic data.
+   The CSV will be saved to `data/consumption.csv`.
 
 ## Project Structure
 
