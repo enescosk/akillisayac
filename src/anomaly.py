@@ -1,4 +1,5 @@
 """Anomaly detection using Z-score thresholding."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -20,4 +21,4 @@ def detect_anomalies(consumption: pd.DataFrame, threshold: float = 2.0) -> pd.Da
         Same shape as *consumption*, True where anomaly.
     """
     z_scores = (consumption - consumption.mean()) / consumption.std()
-    return z_scores.abs() > threshold 
+    return z_scores.abs() > threshold

@@ -3,6 +3,7 @@
 Provides functions to generate synthetic consumption data, load/save the CSV file,
 and ensure the data exists.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -198,6 +199,7 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # IO helpers
 # ---------------------------------------------------------------------------
+
 
 def save_consumption(consumption: pd.DataFrame, path: str | Path | None = None) -> None:
     """Save *consumption* to CSV under *path* (default project data folder)."""

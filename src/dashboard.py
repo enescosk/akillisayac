@@ -22,10 +22,12 @@ st.title("⚡ Smart Electricity Meter Analytics Dashboard")
 # Data loading
 # ---------------------------------------------------------------------------
 
+
 @st.cache_data(ttl=3600)
 def get_consumption() -> pd.DataFrame:
     """Load or generate consumption dataset (cached for 1 hour)."""
     return load_consumption()
+
 
 consumption = get_consumption()
 ALL_CITIES = [c["name"] for c in CITIES]
@@ -148,4 +150,4 @@ if run_forecast:
         y="yhat",
         labels={"ds": "Date", "yhat": "Predicted Consumption (kWh)"},
     )
-    st.plotly_chart(fig_fc, use_container_width=True) 
+    st.plotly_chart(fig_fc, use_container_width=True)
