@@ -184,8 +184,9 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
         hours = _get_hours_last_week()
 
     np.random.seed(42)
-    base_pattern = 100 + 20 * np.sin(2 * np.pi * hours.hour / 24)
-    base_pattern += 10 * np.sin(4 * np.pi * hours.hour / 24)
+    hour_vals = hours.hour.to_numpy()  # ensure ndarray, not pandas Index
+    base_pattern = 100 + 20 * np.sin(2 * np.pi * hour_vals / 24)
+    base_pattern += 10 * np.sin(4 * np.pi * hour_vals / 24)
 
     consumption = pd.DataFrame(index=hours)
     totals = _get_city_totals()
