@@ -1,10 +1,53 @@
 """Forecasting utilities using Prophet."""
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Literal, Tuple
 
 import pandas as pd
 from prophet import Prophet
+
+
+def _prepare_prophet_frame(consumption: pd.Series) -> pd.DataFrame:
+    """Return DataFrame with Prophet-required columns 'ds' and 'y'."""
+    return pd.DataFrame({"ds": consumption.index, "y": consumption.values})
+
+
+def forecast_city(
+    consumption: pd.DataFrame | pd.Series,
+    city: str,
+    periods: int = 72,
+    freq: Literal["h", "H"] = "h",
+) -> pd.DataFrame:
+    """Forecast *periods* hours ahead for *city* using Prophet.
+
+    Parameters
+    ----------
+    consumption : wide DataFrame or Series
+    city : str
+        City name present in *consumption*.
+    periods : int, default 72
+        Number of hours to forecast.
+    freq : str, default "h"
+        Frequency string passed to Prophet future frame.
+
+    Returns
+    -------
+    pd.DataFrame
+        Prophet forecast DataFrame with columns like ['ds', 'yhat', ...].
+    """
+    if isinstance(consumption, pd.DataFrame):
+        series = consumption[city]
+    else:
+        series = consumption
+
+    df = _prepare_prophet_frame(series)
+
+    model = Prophet(daily_seasonality=True, weekly_seasonality=False)
+    model.fit(df)
+
+    future = model.make_future_dataframe(periods=periods, freq=freq, include_history=True)
+    forecast = model.predict(future)
+    return forecast
 
 
 def forecast_consumption(

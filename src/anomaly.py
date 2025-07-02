@@ -3,18 +3,21 @@ from __future__ import annotations
 
 import pandas as pd
 
-Z_THRESHOLD = 2.0
 
+def detect_anomalies(consumption: pd.DataFrame, threshold: float = 2.0) -> pd.DataFrame:
+    """Return boolean DataFrame indicating where abs(Z-score) > *threshold*.
 
-def detect_anomalies(df: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy of *df* with added 'zscore' and 'anomaly' columns.
+    Parameters
+    ----------
+    consumption : pd.DataFrame
+        Wide DataFrame with cities as columns and datetime index.
+    threshold : float, default 2
+        Threshold on absolute Z-score to mark anomaly.
 
-    Z-score is computed within each city separately.
-    A point is an anomaly if |z| > Z_THRESHOLD.
+    Returns
+    -------
+    pd.DataFrame[bool]
+        Same shape as *consumption*, True where anomaly.
     """
-    result = df.copy()
-    result["zscore"] = result.groupby("city")["consumption"].transform(
-        lambda s: (s - s.mean()) / s.std(ddof=0)
-    )
-    result["anomaly"] = result["zscore"].abs() > Z_THRESHOLD
-    return result 
+    z_scores = (consumption - consumption.mean()) / consumption.std()
+    return z_scores.abs() > threshold 

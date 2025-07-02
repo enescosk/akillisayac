@@ -5,109 +5,160 @@ and ensure the data exists.
 """
 from __future__ import annotations
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import pandas as pd
-import pytz  # TZ dönüşümleri için gerekli
 
-# Constants
-CITIES: List[str] = [
-    "Istanbul",
-    "Ankara",
-    "Izmir",
-    "Bursa",
-    "Adana",
-    "Gaziantep",
-    "Konya",
-    "Antalya",
-    "Kayseri",
-    "Mersin",
+# ---------------------------------------------------------------------------
+# City metadata
+# ---------------------------------------------------------------------------
+# 81 Turkish provinces with approximate latitude and longitude
+CITIES: list[dict[str, float | str]] = [
+    {"name": "Adana", "lat": 37.0000, "lon": 35.3213},
+    {"name": "Adiyaman", "lat": 37.7648, "lon": 38.2769},
+    {"name": "Afyonkarahisar", "lat": 38.7638, "lon": 30.5403},
+    {"name": "Agri", "lat": 39.7191, "lon": 43.0519},
+    {"name": "Amasya", "lat": 40.6499, "lon": 35.8353},
+    {"name": "Ankara", "lat": 39.9334, "lon": 32.8597},
+    {"name": "Antalya", "lat": 36.8969, "lon": 30.7133},
+    {"name": "Artvin", "lat": 41.1828, "lon": 41.8194},
+    {"name": "Aydin", "lat": 37.8400, "lon": 27.8447},
+    {"name": "Balikesir", "lat": 39.6484, "lon": 27.8826},
+    {"name": "Bilecik", "lat": 40.1500, "lon": 29.9833},
+    {"name": "Bingol", "lat": 39.0626, "lon": 40.7696},
+    {"name": "Bitlis", "lat": 38.3938, "lon": 42.1235},
+    {"name": "Bolu", "lat": 40.7395, "lon": 31.6116},
+    {"name": "Burdur", "lat": 37.7203, "lon": 30.2908},
+    {"name": "Bursa", "lat": 40.1950, "lon": 29.0600},
+    {"name": "Canakkale", "lat": 40.1467, "lon": 26.4100},
+    {"name": "Cankiri", "lat": 40.6000, "lon": 33.6167},
+    {"name": "Corum", "lat": 40.5506, "lon": 34.9556},
+    {"name": "Denizli", "lat": 37.7833, "lon": 29.0937},
+    {"name": "Diyarbakir", "lat": 37.9144, "lon": 40.2306},
+    {"name": "Edirne", "lat": 41.6771, "lon": 26.5553},
+    {"name": "Elazig", "lat": 38.6752, "lon": 39.2232},
+    {"name": "Erzincan", "lat": 39.7520, "lon": 39.4928},
+    {"name": "Erzurum", "lat": 39.9043, "lon": 41.2679},
+    {"name": "Eskisehir", "lat": 39.7767, "lon": 30.5206},
+    {"name": "Gaziantep", "lat": 37.0662, "lon": 37.3833},
+    {"name": "Giresun", "lat": 40.9128, "lon": 38.3895},
+    {"name": "Gumushane", "lat": 40.4603, "lon": 39.4814},
+    {"name": "Hakkari", "lat": 37.5833, "lon": 43.7333},
+    {"name": "Hatay", "lat": 36.2028, "lon": 36.1600},
+    {"name": "Isparta", "lat": 37.7648, "lon": 30.5566},
+    {"name": "Mersin", "lat": 36.8065, "lon": 34.6400},
+    {"name": "Istanbul", "lat": 41.0082, "lon": 28.9784},
+    {"name": "Izmir", "lat": 38.4237, "lon": 27.1428},
+    {"name": "Kars", "lat": 40.6100, "lon": 43.0975},
+    {"name": "Kastamonu", "lat": 41.3887, "lon": 33.7827},
+    {"name": "Kayseri", "lat": 38.7225, "lon": 35.4875},
+    {"name": "Kirklareli", "lat": 41.7351, "lon": 27.2249},
+    {"name": "Kirsehir", "lat": 39.1480, "lon": 34.1685},
+    {"name": "Kocaeli", "lat": 40.8533, "lon": 29.8815},
+    {"name": "Konya", "lat": 37.8722, "lon": 32.4923},
+    {"name": "Kutahya", "lat": 39.4242, "lon": 29.9833},
+    {"name": "Malatya", "lat": 38.3552, "lon": 38.3095},
+    {"name": "Manisa", "lat": 38.6191, "lon": 27.4289},
+    {"name": "Kahramanmaras", "lat": 37.5858, "lon": 36.9371},
+    {"name": "Mardin", "lat": 37.3128, "lon": 40.7339},
+    {"name": "Mugla", "lat": 37.2153, "lon": 28.3636},
+    {"name": "Mus", "lat": 38.9462, "lon": 41.7539},
+    {"name": "Nevsehir", "lat": 38.6248, "lon": 34.7179},
+    {"name": "Nigde", "lat": 37.9662, "lon": 34.6796},
+    {"name": "Ordu", "lat": 40.9862, "lon": 37.8797},
+    {"name": "Rize", "lat": 41.0201, "lon": 40.5234},
+    {"name": "Sakarya", "lat": 40.7419, "lon": 30.3270},
+    {"name": "Samsun", "lat": 41.2928, "lon": 36.3313},
+    {"name": "Siirt", "lat": 37.9450, "lon": 41.9403},
+    {"name": "Sinop", "lat": 42.0268, "lon": 35.1628},
+    {"name": "Sivas", "lat": 39.7477, "lon": 37.0179},
+    {"name": "Tekirdag", "lat": 40.9599, "lon": 27.5152},
+    {"name": "Tokat", "lat": 40.3141, "lon": 36.5540},
+    {"name": "Trabzon", "lat": 41.0030, "lon": 39.7168},
+    {"name": "Tunceli", "lat": 39.1081, "lon": 39.5483},
+    {"name": "Sanliurfa", "lat": 37.1671, "lon": 38.7955},
+    {"name": "Usak", "lat": 38.6823, "lon": 29.4082},
+    {"name": "Van", "lat": 38.5012, "lon": 43.3662},
+    {"name": "Yozgat", "lat": 39.8209, "lon": 34.8085},
+    {"name": "Zonguldak", "lat": 41.4564, "lon": 31.7987},
+    {"name": "Aksaray", "lat": 38.3687, "lon": 34.0360},
+    {"name": "Bayburt", "lat": 40.2583, "lon": 40.2279},
+    {"name": "Karaman", "lat": 37.1811, "lon": 33.2150},
+    {"name": "Kirikkale", "lat": 39.8468, "lon": 33.5153},
+    {"name": "Batman", "lat": 37.8812, "lon": 41.1351},
+    {"name": "Sirnak", "lat": 37.4187, "lon": 42.4918},
+    {"name": "Bartin", "lat": 41.6350, "lon": 32.3370},
+    {"name": "Ardahan", "lat": 41.1105, "lon": 42.7022},
+    {"name": "Igdir", "lat": 39.9237, "lon": 44.0400},
+    {"name": "Yalova", "lat": 40.6500, "lon": 29.2667},
+    {"name": "Karabuk", "lat": 41.2061, "lon": 32.6204},
+    {"name": "Kilis", "lat": 36.7184, "lon": 37.1150},
+    {"name": "Osmaniye", "lat": 37.0742, "lon": 36.2475},
+    {"name": "Duzce", "lat": 40.8438, "lon": 31.1565},
 ]
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-CSV_PATH = DATA_DIR / "consumption.csv"
+# ---------------------------------------------------------------------------
+# Simulation helpers
+# ---------------------------------------------------------------------------
+
+_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "consumption.csv"
 
 
-def _simulate_city_series(city: str, start: datetime, end: datetime) -> pd.DataFrame:
-    """Simulate hourly consumption for a single city between *start* and *end*.
-    The profile follows a daily sinusoidal pattern with added random noise.
+def _get_hours_last_week(now: pd.Timestamp | None = None) -> pd.DatetimeIndex:
+    """Return hourly DateTimeIndex for the last 7 days ending at *now* (rounded to hour)."""
+    if now is None:
+        now = datetime.now(tz=timezone.utc).astimezone()
+    end = pd.Timestamp(now).floor("h")
+    periods = 24 * 7
+    return pd.date_range(end=end, periods=periods, freq="h")
+
+
+def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
+    """Generate simulated hourly consumption for all 81 cities.
+
+    The profile follows a daily sinusoidal pattern (two harmonics) plus Gaussian noise. Each
+    city gets a random offset (heterogeneity).
     """
-    # If datetime is naive, assign Europe/Istanbul timezone
-    tz = pytz.timezone("Europe/Istanbul")
-    if start.tzinfo is None:
-        start = tz.localize(start)
-    if end.tzinfo is None:
-        end = tz.localize(end)
+    if hours is None:
+        hours = _get_hours_last_week()
 
-    rng = pd.date_range(start=start, end=end, freq="H", tz="Europe/Istanbul")
+    np.random.seed(42)
+    base_pattern = 100 + 20 * np.sin(2 * np.pi * hours.hour / 24)
+    base_pattern += 10 * np.sin(4 * np.pi * hours.hour / 24)
 
-    hours = np.arange(len(rng))
+    consumption = pd.DataFrame(index=hours)
+    for city in CITIES:
+        city_offset = np.random.normal(0, 5)
+        noise = np.random.normal(0, 3, size=len(hours))
+        consumption[city["name"]] = base_pattern + city_offset + noise
 
-    # Daily pattern: sin wave over 24h (2π per day)
-    daily_cycle = np.sin(2 * np.pi * (hours % 24) / 24)
-
-    # City-specific base load and amplitude for variability
-    rng_state = np.random.RandomState(abs(hash(city)) % (2**32 - 1))
-    base_load = rng_state.uniform(300, 600)  # kWh baseline
-    amplitude = rng_state.uniform(150, 300)
-
-    # Random noise (Gaussian)
-    noise = np.random.normal(scale=amplitude * 0.2, size=len(rng))
-
-    consumption = base_load + amplitude * (daily_cycle + 1) + noise
-    consumption = np.clip(consumption, a_min=0, a_max=None)
-
-    return pd.DataFrame(
-        {
-            "datetime": rng,
-            "city": city,
-            "consumption": consumption.astype(float),
-        }
-    )
+    return consumption
 
 
-def generate_consumption_data(days: int = 7) -> pd.DataFrame:
-    """Generate synthetic consumption data for the past *days* (default 7)."""
-    end = datetime.now(pytz.timezone("Europe/Istanbul"))
-    start = end - timedelta(days=days)
+# ---------------------------------------------------------------------------
+# IO helpers
+# ---------------------------------------------------------------------------
 
-    frames = [
-        _simulate_city_series(city, start=start, end=end) for city in CITIES
-    ]
-    df = pd.concat(frames, ignore_index=True)
-    return df
-
-
-def save_consumption_csv(df: pd.DataFrame, path: Path = CSV_PATH) -> None:
-    """Save *df* to *path*, creating parent directories if necessary."""
+def save_consumption(consumption: pd.DataFrame, path: str | Path | None = None) -> None:
+    """Save *consumption* to CSV under *path* (default project data folder)."""
+    if path is None:
+        path = _DATA_PATH
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    df_to_save = df.copy()
-    df_to_save["datetime"] = df_to_save["datetime"].dt.tz_convert(None)
-    df_to_save.to_csv(path, index=False)
+    consumption.to_csv(path)
 
 
-def load_consumption_csv(path: Path = CSV_PATH) -> pd.DataFrame:
-    """Load consumption CSV, parsing dates and ensuring correct dtypes."""
-    df = pd.read_csv(path, parse_dates=["datetime"])
-    df["datetime"] = df["datetime"].dt.tz_localize("Europe/Istanbul")
-    return df
+def load_consumption(path: str | Path | None = None) -> pd.DataFrame:
+    """Load consumption from CSV; generate and save if not present."""
+    if path is None:
+        path = _DATA_PATH
+    path = Path(path)
 
+    if path.exists():
+        return pd.read_csv(path, index_col=0, parse_dates=True)
 
-def get_consumption_data(ensure: bool = True) -> pd.DataFrame:
-    """Load consumption data; generate and save if missing or *ensure* is False."""
-    if CSV_PATH.exists():
-        try:
-            return load_consumption_csv()
-        except Exception:
-            pass
-
-    if ensure:
-        df = generate_consumption_data()
-        save_consumption_csv(df)
-        return df
-
-    raise FileNotFoundError(f"Consumption CSV not found at {CSV_PATH}")
+    data = generate_consumption()
+    save_consumption(data, path)
+    return data
