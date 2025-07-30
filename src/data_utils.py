@@ -225,10 +225,16 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     city gets a random offset (heterogeneity).
     """
     if hours is None:
-        hours = _get_hours_last_week()
+        # Ensure range covers any holiday definitions; otherwise last 7 days.
+        if _HOLIDAY_EFFECTS:
+            earliest = min(start for start, _, _ in _HOLIDAY_EFFECTS)
+            end = datetime.now(tz=timezone.utc).astimezone().floor("h")
+            hours = pd.date_range(start=earliest.floor("h"), end=end, freq="h")
+        else:
+            hours = _get_hours_last_week()
 
     np.random.seed(42)
-    # Use `.values` to ensure numpy arrays, avoiding pandas Index math quirks
+    # Use `.values` to build numpy base pattern
     base_pattern = 100 + 20 * np.sin(2 * np.pi * hours.hour.values / 24)
     base_pattern += 10 * np.sin(4 * np.pi * hours.hour.values / 24)
 
@@ -243,18 +249,20 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
         noise = np.random.normal(0, 3, size=h_len)
         series = base_pattern + city_offset + noise
 
-        # Scale to yearly totals if available
+        # Ölçekleme: yıllık toplamı tuttur
         norm_name = _normalize(city["name"])
         if norm_name in totals and totals[norm_name] > 0:
             target_total = totals[norm_name] * (h_len / hrs_in_year)
-            factor = target_total / series.sum()
-            series = series * factor
+            series *= target_total / series.sum()
 
         consumption[city["name"]] = series
 
     # ---- Tatil etkilerini uygula ----
-    # Ensure timezone consistency: make both sides tz-naive for comparison
-    idx_naive = consumption.index.tz_localize(None) if consumption.index.tz is not None else consumption.index
+    idx_naive = (
+        consumption.index.tz_localize(None)
+        if consumption.index.tz is not None
+        else consumption.index
+    )
     for start, end, mult in _HOLIDAY_EFFECTS:
         mask = (idx_naive >= start) & (idx_naive <= end)
         if mask.any():
@@ -269,9 +277,8 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
 # IO helpers
 # ---------------------------------------------------------------------------
 
-
 def save_consumption(consumption: pd.DataFrame, path: str | Path | None = None) -> None:
-    """Save *consumption* to CSV under *path* (default project data folder)."""
+    """Save *consumption* DataFrame to CSV."""
     if path is None:
         path = _DATA_PATH
     path = Path(path)
@@ -280,11 +287,7 @@ def save_consumption(consumption: pd.DataFrame, path: str | Path | None = None) 
 
 
 def load_consumption(path: str | Path | None = None, *, force: bool = False) -> pd.DataFrame:
-    """Load consumption from CSV; generate and save if not present or *force*.
-
-    Data will also be regenerated automatically if the city totals CSV is newer
-    (i.e., yearly data updated) than the cached consumption file.
-    """
+    """Load consumption CSV, regenerate if missing/new yearly totals or *force*."""
     if path is None:
         path = _DATA_PATH
     path = Path(path)
@@ -292,7 +295,6 @@ def load_consumption(path: str | Path | None = None, *, force: bool = False) -> 
     totals_mtime = (
         _TOTALS_CSV.stat().st_mtime if _TOTALS_CSV and _TOTALS_CSV.exists() else None
     )
-
     regenerate = force or (not path.exists())
     if not regenerate and totals_mtime is not None:
         regenerate = totals_mtime > path.stat().st_mtime
