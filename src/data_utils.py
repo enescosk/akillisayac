@@ -146,21 +146,38 @@ def _normalize(name: str) -> str:
 
 
 def _load_city_totals() -> dict[str, float]:
-    """Load yearly city totals from CSV → dict(normalized_name -> kWh)."""
-    if not _TOTALS_CSV:
+    """Load yearly city totals from CSV → dict(normalized_name -> kWh).
+
+    Accepts both well-formed two-column CSVs or fallback to lines of
+    'city,total_mwh'. Lines that cannot be parsed are ignored.
+    """
+    if not _TOTALS_CSV or not _TOTALS_CSV.exists():
         return {}
-    df = pd.read_csv(_TOTALS_CSV)
-    # Expect columns: city, total_mwh OR Turkish header variations
-    # Identify first two columns regardless of names
-    col_city, col_value = df.columns[:2]
-    totals = {}
-    for _, row in df.iterrows():
-        name = str(row[col_city]).strip()
+
+    try:
+        df = pd.read_csv(_TOTALS_CSV)
+        if df.shape[1] < 2:
+            raise ValueError("Only one column detected")
+
+        col_city, col_value = df.columns[:2]
+        records = df[[col_city, col_value]].values.tolist()
+    except Exception:
+        # Fallback: manual parsing
+        records = []
+        with open(_TOTALS_CSV, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = [p.strip() for p in line.strip().split(",")]
+                if len(parts) >= 2:
+                    records.append(parts[:2])
+
+    totals: dict[str, float] = {}
+    for city, val in records:
         try:
-            value_mwh = float(str(row[col_value]).replace(".", ""))
+            value_mwh = float(str(val).replace(".", ""))
         except ValueError:
             continue
-        totals[_normalize(name)] = value_mwh * 1000  # convert to kWh
+        totals[_normalize(str(city))] = value_mwh * 1000
+
     return totals
 
 
