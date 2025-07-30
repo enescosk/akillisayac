@@ -174,6 +174,33 @@ def _get_city_totals() -> dict[str, float]:
     return _CITY_TOTALS_KWH
 
 
+# ---------------------------------------------------------------------------
+# Domain specific tweaks (holiday effects, etc.)
+# ---------------------------------------------------------------------------
+
+# Yazlık (turistik kıyı) illeri: Kurban Bayramı tatilinde artış beklenir
+_COASTAL_CITIES = [
+    "Antalya",
+    "Mugla",
+    "Aydin",
+    "Balikesir",
+    "Izmir",
+    "Mersin",
+    "Hatay",
+    "Canakkale",
+]
+
+# Dönem -> katsayı listesi (başlangıç, bitiş, multiplier)
+_HOLIDAY_EFFECTS: list[tuple[pd.Timestamp, pd.Timestamp, float]] = [
+    # Kurban Bayramı 2024 (17-21 Haziran) – %20 artış
+    (
+        pd.Timestamp("2024-06-17 00:00"),
+        pd.Timestamp("2024-06-21 23:00"),
+        1.20,
+    ),
+]
+
+
 def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     """Generate simulated hourly consumption for all 81 cities.
 
@@ -207,6 +234,14 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
             series = series * factor
 
         consumption[city["name"]] = series
+
+    # ---- Tatil etkilerini uygula ----
+    for start, end, mult in _HOLIDAY_EFFECTS:
+        mask = (consumption.index >= start) & (consumption.index <= end)
+        if mask.any():
+            for city in _COASTAL_CITIES:
+                if city in consumption.columns:
+                    consumption.loc[mask, city] *= mult
 
     return consumption
 
