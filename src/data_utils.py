@@ -236,8 +236,10 @@ def generate_consumption(hours: pd.DatetimeIndex | None = None) -> pd.DataFrame:
         consumption[city["name"]] = series
 
     # ---- Tatil etkilerini uygula ----
+    # Ensure timezone consistency: make both sides tz-naive for comparison
+    idx_naive = consumption.index.tz_localize(None) if consumption.index.tz is not None else consumption.index
     for start, end, mult in _HOLIDAY_EFFECTS:
-        mask = (consumption.index >= start) & (consumption.index <= end)
+        mask = (idx_naive >= start) & (idx_naive <= end)
         if mask.any():
             for city in _COASTAL_CITIES:
                 if city in consumption.columns:
