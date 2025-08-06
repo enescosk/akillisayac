@@ -89,4 +89,4 @@ def _choose_templates(category: str, n: int) -> list[str]:
         ],
     }
     pool = templates.get(category, templates["flat"])
-    return random.sample(pool, k=min(n, len(pool))) 
+    return random.sample(pool, k=min(n, len(pool)))
