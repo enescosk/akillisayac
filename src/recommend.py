@@ -10,18 +10,28 @@ def _template_pool() -> dict[str, list[str]]:
         "midday": [
             "Öğle pikinde ({peak_start:02d}:00–{peak_end:02d}:00) klimayı azaltmak için evi sabahın serin saatlerinde önceden soğutun.",
             "Çamaşır/bulaşık makinelerini gece {off_start:02d}:00–{off_end:02d}:00 tarifesinde çalıştırarak öğle pik tüketiminden kaçının.",
+            "{city}’de güneş paneliniz varsa öğlen fazlasını şebekeye satarak en yüksek geri dönüşü alın.",
+            "Öğle pikini dengelemek için ofis cihazlarını zamanlayıcı ile sabah {off_start:02d}:00 sonrası çalıştırın.",
+            "Soğutmayı {peak_start:02d}:00’dan önce tamamlayarak öğle tarifesindeki pahalı kWh’lerden kaçının.",
         ],
         "evening": [
             "Akşam pikine ({peak_start:02d}:00–{peak_end:02d}:00) girmeden yemeği erken pişirip yüksek güçlü aletleri gece {off_start:02d}:00 sonrası çalıştırın.",
             "Elektrikli araç şarjını {off_start:02d}:00–{off_end:02d}:00 düşük tarife saatlerine kaydırın; şebeke yükü azalsın fatura düşsün.",
+            "Akşam pik oranı yüksek olduğu için {city}’de akıllı prizlerle TV/konsol kullanımını {peak_end:02d}:00 sonrası erteleyin.",
+            "Yemek pişirmede Airfryer kullanarak {peak_start:02d}:00–{peak_end:02d}:00 arası fırın yükünü %30 azaltın.",
+            "Su ısıtıcısını zamanlayıcıyla gece {off_start:02d}:00’da devreye alarak akşam pikini düşürün.",
         ],
         "morning": [
             "Sabah pikinde ({peak_start:02d}:00–{peak_end:02d}:00) kettle/termosifon yerine geceden su ısıtın; tüketimi {off_start:02d}:00 sonrası dağıtın.",
             "Yoğun sabah saatleri yerine elektrikli süpürgeyi öğleden sonra kullanarak talep profilinizi düzleştirin.",
+            "Isıtıcıyı {off_start:02d}:00’dan sonra çalıştırıp sabah piki öncesi evi ısıtın.",
+            "Sabah duşu için boyleri gece tarifesinde ısıtıp sabah pikindeki direnci devre dışı bırakın.",
         ],
         "flat": [
             "Geceleri {off_start:02d}:00–{off_end:02d}:00 arasında ağır cihaz kullanımını toplamak faturanızı düşürür.",
             "Stand-by cihazları yatmadan önce kapatın; pik dışı saatlerde bile gereksiz tüketimden kaçınırsınız.",
+            "{city}’de tüketim dalgalı değil; tarife tasarrufu için faturanızı tek zamanlı yerine çok zamanlıya geçirmeyi düşünün.",
+            "Pik farkı düşük olduğu için tasarrufu cihaz verimliliği ve stand-by azaltımıyla sağlayın.",
         ],
         "rising": [
             "Son 3 günde tüketiminiz % {trend_pct} arttı; enerji yoğun işlemleri erteleyip verimliliği artırarak artışı sınırlayın.",
@@ -34,7 +44,7 @@ def _template_pool() -> dict[str, list[str]]:
     }
 
 
-def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
+def generate_suggestions(forecast_df: pd.DataFrame, city: str | None = None) -> List[str]:
     """Return 2 varied suggestions tailored to forecast peak/off-peak pattern."""
     if not {"ds", "yhat"}.issubset(forecast_df.columns):
         raise ValueError("forecast_df must contain 'ds' and 'yhat' columns")
@@ -87,6 +97,7 @@ def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
             off_end=off_end,
             trend_pct=trend_pct,
             peak_ratio=int(peak_ratio),
+            city=city or "Şehriniz",
         )
         for t in chosen
     ]
