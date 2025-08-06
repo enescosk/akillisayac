@@ -36,13 +36,34 @@ def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
     off_start = (off_hour - 1) % 24
     off_end = (off_hour + 1) % 24
 
-    suggestion1 = (
-        f"Run high-load appliances (laundry, dishwasher) between {off_start:02d}:00–{off_end:02d}:00 "
-        "when demand and tariffs are lowest."
-    )
-    suggestion2 = (
-        f"Limit air-conditioning and other heavy use during {peak_start:02d}:00–{peak_end:02d}:00; "
-        "pre-cool/heat beforehand to avoid peak-rate costs."
-    )
+    # Craft suggestions based on when the peak occurs
+    if 11 <= peak_hour <= 16:  # Midday solar-rich period
+        suggestion1 = (
+            f"Shift laundry/dishwasher runs to {off_start:02d}:00–{off_end:02d}:00 night window to benefit from low tariffs."
+        )
+        suggestion2 = (
+            f"Reduce midday AC usage during {peak_start:02d}:00–{peak_end:02d}:00 by pre-cooling your home in the morning." 
+        )
+    elif 17 <= peak_hour <= 22:  # Evening peak
+        suggestion1 = (
+            f"Cook dinner with smaller appliances or earlier to avoid the {peak_start:02d}:00–{peak_end:02d}:00 peak window."
+        )
+        suggestion2 = (
+            f"Run high-load devices between {off_start:02d}:00–{off_end:02d}:00 overnight when demand is lowest." 
+        )
+    elif 6 <= peak_hour <= 10:  # Morning peak
+        suggestion1 = (
+            f"Prepare hot water (boiler) after {off_start:02d}:00 when rates drop, avoiding the {peak_start:02d}:00–{peak_end:02d}:00 morning spike."
+        )
+        suggestion2 = (
+            f"Delay starting energy-hungry appliances until mid-day off-peak hours around {off_start:02d}:00–{off_end:02d}:00." 
+        )
+    else:  # Night or flat profile
+        suggestion1 = (
+            f"Take advantage of consistently low demand by scheduling appliances during {off_start:02d}:00–{off_end:02d}:00 off-peak hours."
+        )
+        suggestion2 = (
+            f"Maintain efficiency by switching off standby electronics; no significant peaks expected in next 72 h." 
+        )
 
     return [suggestion1, suggestion2] 
