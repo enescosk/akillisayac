@@ -154,7 +154,7 @@ if run_forecast:
     st.plotly_chart(fig_fc, use_container_width=True)
 
     # Suggestions
-    suggestions = generate_suggestions(forecast_df)
+    suggestions = generate_suggestions(forecast_df, fc_city)
     st.markdown("### Usage Suggestions")
     for s in suggestions:
         st.markdown(f"- {s}")
