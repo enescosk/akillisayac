@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 from typing import List
+import random
 
 
 def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
@@ -36,34 +37,56 @@ def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
     off_start = (off_hour - 1) % 24
     off_end = (off_hour + 1) % 24
 
-    # Craft suggestions based on when the peak occurs
+    # Identify usage category by peak hour
     if 11 <= peak_hour <= 16:  # Midday solar-rich period
-        suggestion1 = (
-            f"Shift laundry/dishwasher runs to {off_start:02d}:00–{off_end:02d}:00 night window to benefit from low tariffs."
-        )
-        suggestion2 = (
-            f"Reduce midday AC usage during {peak_start:02d}:00–{peak_end:02d}:00 by pre-cooling your home in the morning." 
-        )
+        category = "midday"
     elif 17 <= peak_hour <= 22:  # Evening peak
-        suggestion1 = (
-            f"Cook dinner with smaller appliances or earlier to avoid the {peak_start:02d}:00–{peak_end:02d}:00 peak window."
-        )
-        suggestion2 = (
-            f"Run high-load devices between {off_start:02d}:00–{off_end:02d}:00 overnight when demand is lowest." 
-        )
+        category = "evening"
     elif 6 <= peak_hour <= 10:  # Morning peak
-        suggestion1 = (
-            f"Prepare hot water (boiler) after {off_start:02d}:00 when rates drop, avoiding the {peak_start:02d}:00–{peak_end:02d}:00 morning spike."
-        )
-        suggestion2 = (
-            f"Delay starting energy-hungry appliances until mid-day off-peak hours around {off_start:02d}:00–{off_end:02d}:00." 
-        )
+        category = "morning"
     else:  # Night or flat profile
-        suggestion1 = (
-            f"Take advantage of consistently low demand by scheduling appliances during {off_start:02d}:00–{off_end:02d}:00 off-peak hours."
-        )
-        suggestion2 = (
-            f"Maintain efficiency by switching off standby electronics; no significant peaks expected in next 72 h." 
-        )
+        category = "flat"
+
+    # Choose two templates and format with hours
+    templates = _choose_templates(category, 2)
+    suggestion1 = templates[0].format(
+        peak_start=peak_start,
+        peak_end=peak_end,
+        off_start=off_start,
+        off_end=off_end,
+    )
+    suggestion2 = templates[1].format(
+        peak_start=peak_start,
+        peak_end=peak_end,
+        off_start=off_start,
+        off_end=off_end,
+    )
 
     return [suggestion1, suggestion2] 
+
+
+def _choose_templates(category: str, n: int) -> list[str]:
+    """Return *n* random templates for given category."""
+
+    templates = {
+        "midday": [
+            "Run laundry and dishwasher after {off_start:02d}:00 to leverage night tariffs and avoid midday AC peak.",
+            "Pre-cool your home in the early morning to reduce AC load between {peak_start:02d}:00-{peak_end:02d}:00.",
+            "Charge EVs or batteries during {off_start:02d}:00–{off_end:02d}:00 when demand is minimal.",
+        ],
+        "evening": [
+            "Shift cooking to electric pressure cookers before {peak_start:02d}:00 to dodge evening peak rates.",
+            "Run water-heaters or ironing overnight ({off_start:02d}:00–{off_end:02d}:00) instead of the {peak_start:02d}:00–{peak_end:02d}:00 window.",
+            "Delay EV charging until after {peak_end:02d}:00 to flatten your evening demand curve.",
+        ],
+        "morning": [
+            "Program coffee machines and boilers after {peak_end:02d}:00 to skip the morning spike.",
+            "Do vacuuming or other high-draw chores in the off-peak {off_start:02d}:00–{off_end:02d}:00 slot.",
+        ],
+        "flat": [
+            "Maintain savings by clustering appliance use in the {off_start:02d}:00–{off_end:02d}:00 low-demand window.",
+            "Turn off standby electronics overnight; no strong peaks expected, so every kWh counts.",
+        ],
+    }
+    pool = templates.get(category, templates["flat"])
+    return random.sample(pool, k=min(n, len(pool))) 
