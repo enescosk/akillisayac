@@ -23,6 +23,14 @@ def _template_pool() -> dict[str, list[str]]:
             "Geceleri {off_start:02d}:00–{off_end:02d}:00 arasında ağır cihaz kullanımını toplamak faturanızı düşürür.",
             "Stand-by cihazları yatmadan önce kapatın; pik dışı saatlerde bile gereksiz tüketimden kaçınırsınız.",
         ],
+        "rising": [
+            "Son 3 günde tüketiminiz % {trend_pct} arttı; enerji yoğun işlemleri erteleyip verimliliği artırarak artışı sınırlayın.",
+            "Talep artış trendine karşı tarifeleri gözden geçirip çok zamanlı plana geçmeyi değerlendirin (artış %{trend_pct}).",
+        ],
+        "high_peak_ratio": [
+            "Pik/off-peak oranı %{peak_ratio} olduğundan cihazları gece {off_start:02d}:00–{off_end:02d}:00 arasında çalıştırmak büyük tasarruf sağlar.",
+            "Tüketiminiz pik saate göre %{peak_ratio} kat artıyor; akıllı prizlerle otomatik zamanlama yapın.",
+        ],
     }
 
 
@@ -37,12 +45,20 @@ def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
     peak_hour = int(hourly_mean.idxmax())
     off_hour = int(hourly_mean.idxmin())
 
+    # Peak ratio (how many times bigger than off peak)
+    peak_ratio = hourly_mean.loc[peak_hour] / max(hourly_mean.loc[off_hour], 1e-6)
+
+    # Trend: compare last 24h vs first 24h average
+    first_24 = df.iloc[:24]["yhat"].mean()
+    last_24 = df.iloc[-24:]["yhat"].mean()
+    trend_pct = int((last_24 - first_24) / first_24 * 100)
+
     peak_start = (peak_hour - 1) % 24
     peak_end = (peak_hour + 1) % 24
     off_start = (off_hour - 1) % 24
     off_end = (off_hour + 1) % 24
 
-    # category by peak time
+    # category by metrics
     if 11 <= peak_hour <= 16:
         category = "midday"
     elif 17 <= peak_hour <= 22:
@@ -52,7 +68,25 @@ def generate_suggestions(forecast_df: pd.DataFrame) -> List[str]:
     else:
         category = "flat"
 
-    templates = _template_pool()[category]
+    # Additional category overlays
+    extra_keys: list[str] = []
+    if peak_ratio > 2:
+        extra_keys.append("high_peak_ratio")
+    if trend_pct > 5:
+        extra_keys.append("rising")
+
+    templates = _template_pool()[category] + sum((_template_pool()[k] for k in extra_keys), [])
+
     chosen = random.sample(templates, k=2 if len(templates) >= 2 else len(templates))
 
-    return [t.format(peak_start=peak_start, peak_end=peak_end, off_start=off_start, off_end=off_end) for t in chosen]
+    return [
+        t.format(
+            peak_start=peak_start,
+            peak_end=peak_end,
+            off_start=off_start,
+            off_end=off_end,
+            trend_pct=trend_pct,
+            peak_ratio=int(peak_ratio),
+        )
+        for t in chosen
+    ]
