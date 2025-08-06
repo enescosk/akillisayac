@@ -9,6 +9,7 @@ from streamlit_folium import st_folium
 from anomaly import detect_anomalies
 from data_utils import CITIES, load_consumption
 from forecast import forecast_city
+from recommend import generate_suggestions
 
 # ---------------------------------------------------------------------------
 # Streamlit configuration
@@ -151,3 +152,9 @@ if run_forecast:
         labels={"ds": "Date", "yhat": "Predicted Consumption (kWh)"},
     )
     st.plotly_chart(fig_fc, use_container_width=True)
+
+    # Suggestions
+    suggestions = generate_suggestions(forecast_df)
+    st.markdown("### Usage Suggestions")
+    for s in suggestions:
+        st.markdown(f"- {s}")
